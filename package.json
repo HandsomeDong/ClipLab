@@ -1,0 +1,72 @@
+{
+  "name": "cliplab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ClipLab desktop MVP for cross-platform video download and watermark removal.",
+  "main": "dist-electron/electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev:local",
+    "dev:clean": "node scripts/dev-clean.mjs",
+    "dev:local": "npm run dev:clean && concurrently -k \"npm:dev:renderer\" \"npm:dev:backend:local\" \"npm:dev:electron:compile\" \"npm:dev:electron:run\"",
+    "dev:renderer": "vite build --watch",
+    "dev:backend:local": "cross-env UV_CACHE_DIR=.uv-cache CLIPLAB_PID_FILE=.run/backend-dev.pid uv run --project backend uvicorn cliplab_backend.main:app --host 127.0.0.1 --port 8765",
+    "dev:backend:lan": "cross-env UV_CACHE_DIR=.uv-cache CLIPLAB_PID_FILE=.run/backend-dev.pid uv run --project backend uvicorn cliplab_backend.main:app --host 0.0.0.0 --port 8765",
+    "dev:lan": "npm run dev:clean && concurrently -k \"npm:dev:renderer\" \"npm:dev:backend:lan\" \"npm:dev:electron:compile\" \"npm:dev:electron:run\"",
+    "dev:electron:compile": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "dev:electron:run": "wait-on dist/index.html dist-electron/electron/main.js tcp:8765 && cross-env CLIPLAB_BACKEND_URL=http://127.0.0.1:8765 electron dist-electron/electron/main.js",
+    "stop": "node scripts/dev-clean.mjs",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "tsc -b && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "lint": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "package": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.2.2",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.cliplab.desktop",
+    "productName": "ClipLab",
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "backend/**",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "public"
+    },
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.video"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}
