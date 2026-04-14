@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +12,7 @@ const DEFAULT_BACKEND_URL = "http://127.0.0.1:8765";
 let mainWindow: BrowserWindow | null = null;
 let backendProcess: ChildProcessWithoutNullStreams | null = null;
 let isQuitting = false;
+const APP_ICON_RELATIVE_PATH = path.join("assets", "icons", "app-icon.png");
 
 function getUserDataFile() {
   return path.join(app.getPath("userData"), "config.json");
@@ -53,6 +54,21 @@ function resolveBackendBinary() {
   const packagedRoot = process.resourcesPath;
   const binaryName = process.platform === "win32" ? "cliplab-backend.exe" : "cliplab-backend";
   return path.join(packagedRoot, "backend", "dist", binaryName);
+}
+
+function resolveAppIconPath() {
+  const candidates = app.isPackaged
+    ? [
+        path.join(app.getAppPath(), "dist", APP_ICON_RELATIVE_PATH),
+        path.join(process.resourcesPath, "app.asar.unpacked", "dist", APP_ICON_RELATIVE_PATH),
+        path.join(process.resourcesPath, "dist", APP_ICON_RELATIVE_PATH)
+      ]
+    : [
+        path.join(process.cwd(), "public", APP_ICON_RELATIVE_PATH),
+        path.join(process.cwd(), "dist", APP_ICON_RELATIVE_PATH)
+      ];
+
+  return candidates.find((candidate) => existsSync(candidate));
 }
 
 function getPackagedBackendPidFile() {
@@ -164,6 +180,8 @@ function createBackendProcess(config: AppConfig) {
 
 async function createWindow() {
   const config = readAppConfig();
+  const iconPath = resolveAppIconPath();
+  const icon = iconPath ? nativeImage.createFromPath(iconPath) : undefined;
 
   await cleanupStaleBackendPidFile();
 
@@ -173,12 +191,17 @@ async function createWindow() {
     minWidth: 1200,
     minHeight: 720,
     title: "ClipLab",
+    icon,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
+
+  if (process.platform === "darwin" && icon && !icon.isEmpty()) {
+    app.dock?.setIcon(icon);
+  }
 
   if (!app.isPackaged) {
     mainWindow.webContents.on(

@@ -4,6 +4,10 @@
 
 ClipLab 是一个本地优先的桌面视频工具，当前以 `macOS` 为首发目标，工程结构同时兼顾 `Windows` 打包。项目由 `Electron + React + TypeScript` 桌面端和 `FastAPI` 本地后端组成，适合处理“复制分享文案 -> 提取真实链接 -> 下载原视频”这类桌面工作流。
 
+## 界面预览
+
+![ClipLab Preview](./docs/images/app-preview.svg)
+
 ## 功能概览
 
 - 支持从整段分享文案中提取真实视频链接
@@ -181,9 +185,27 @@ ClipLab/
 │  │  └─ main.py                # FastAPI 入口
 │  └─ tests/                    # 后端测试
 ├─ scripts/                     # 开发辅助脚本
+├─ docs/                        # README 预览图等文档资源
 ├─ app-data/                    # 运行期生成的数据目录（已忽略）
 └─ tmp/                         # 本地参考项目目录（已忽略）
 ```
+
+## 图标放置位置
+
+请将你的软件图标放到：
+
+- `public/assets/icons/app-icon.png`
+
+当前程序会优先用这张图作为：
+
+- 左上角品牌图标
+- Electron 窗口图标
+- macOS Dock 图标
+
+如果你后续还要做正式打包，建议额外准备：
+
+- `public/assets/icons/app-icon.icns`
+- `public/assets/icons/app-icon.ico`
 
 ## 环境变量
 

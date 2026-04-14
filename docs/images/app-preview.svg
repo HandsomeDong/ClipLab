@@ -1,0 +1,110 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="22" fill="#F5F7FB"/>
+  <rect x="1" y="1" width="1598" height="898" rx="21" stroke="#D9E2EE"/>
+  <circle cx="30" cy="28" r="10" fill="#FF5F57"/>
+  <circle cx="60" cy="28" r="10" fill="#FEBC2E"/>
+  <circle cx="90" cy="28" r="10" fill="#28C840"/>
+  <text x="800" y="28" text-anchor="middle" fill="#444" font-size="22" font-family="Arial, PingFang SC, sans-serif" font-weight="700">ClipLab</text>
+
+  <rect x="0" y="44" width="312" height="856" fill="#FFFFFF"/>
+  <rect x="0" y="44" width="312" height="856" fill="url(#sidebarLight)" fill-opacity="0.18"/>
+
+  <defs>
+    <clipPath id="catClip">
+      <rect x="24" y="82" width="62" height="62" rx="18"/>
+    </clipPath>
+  </defs>
+
+  <rect x="24" y="82" width="62" height="62" rx="18" fill="#E9EEF8"/>
+  <g clip-path="url(#catClip)">
+    <rect x="24" y="82" width="62" height="62" fill="url(#catBg)"/>
+    <ellipse cx="54" cy="119" rx="22" ry="24" fill="#F9F9F9"/>
+    <ellipse cx="71" cy="107" rx="12" ry="14" fill="#F9F9F9"/>
+    <ellipse cx="42" cy="102" rx="10" ry="13" fill="#F9F9F9"/>
+    <path d="M35 94L42 83L47 96Z" fill="#F9F9F9"/>
+    <path d="M63 96L73 84L76 99Z" fill="#F9F9F9"/>
+    <ellipse cx="48" cy="116" rx="2.6" ry="3.4" fill="#2D3A52"/>
+    <ellipse cx="64" cy="115" rx="2.6" ry="3.4" fill="#2D3A52"/>
+    <ellipse cx="56" cy="124" rx="5" ry="3.2" fill="#E8A4B5"/>
+    <path d="M51 130C54 133 58 133 61 130" stroke="#2D3A52" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+
+  <text x="102" y="118" fill="#1E2740" font-size="28" font-family="Arial, PingFang SC, sans-serif" font-weight="700">ClipLab</text>
+  <text x="102" y="146" fill="#7182A0" font-size="17" font-family="Arial, PingFang SC, sans-serif">七里翔短视频创作工具</text>
+
+  <rect x="24" y="186" width="264" height="56" rx="18" fill="#E7F1EF"/>
+  <text x="42" y="220" fill="#0B6D62" font-size="21" font-family="Arial, PingFang SC, sans-serif" font-weight="700">链接下载</text>
+  <text x="42" y="288" fill="#243451" font-size="18" font-family="Arial, PingFang SC, sans-serif">去水印</text>
+  <text x="42" y="356" fill="#243451" font-size="18" font-family="Arial, PingFang SC, sans-serif">任务列表</text>
+  <text x="42" y="424" fill="#243451" font-size="18" font-family="Arial, PingFang SC, sans-serif">设置</text>
+  <text x="24" y="836" fill="#74839F" font-size="18" font-family="Arial, PingFang SC, sans-serif">MVP</text>
+  <text x="24" y="866" fill="#74839F" font-size="12" font-family="Arial, PingFang SC, sans-serif">macOS first, Windows ready</text>
+
+  <rect x="312" y="44" width="1288" height="856" fill="url(#mainLight)"/>
+  <text x="360" y="176" fill="#1E2740" font-size="36" font-family="Arial, PingFang SC, sans-serif" font-weight="700">链接下载</text>
+  <text x="360" y="214" fill="#6F809D" font-size="19" font-family="Arial, PingFang SC, sans-serif">ClipLab 已准备好。</text>
+
+  <rect x="1377" y="156" width="98" height="42" rx="21" fill="#D9F0ED"/>
+  <text x="1426" y="183" text-anchor="middle" fill="#0A6D61" font-size="15" font-family="Arial, PingFang SC, sans-serif" font-weight="700">后端在线</text>
+  <rect x="1486" y="156" width="92" height="42" rx="21" fill="#DCEAFB"/>
+  <text x="1532" y="183" text-anchor="middle" fill="#225A9C" font-size="15" font-family="Arial, PingFang SC, sans-serif" font-weight="700">0 个任务</text>
+
+  <rect x="360" y="308" width="590" height="560" rx="28" fill="#FFFFFF" fill-opacity="0.86"/>
+  <rect x="974" y="308" width="586" height="560" rx="28" fill="#FFFFFF" fill-opacity="0.86"/>
+
+  <text x="386" y="362" fill="#1E2740" font-size="24" font-family="Arial, PingFang SC, sans-serif" font-weight="700">批量下载</text>
+  <text x="386" y="402" fill="#6E7E9A" font-size="15" font-family="Arial, PingFang SC, sans-serif">支持整段分享文案里的抖音、快手单视频链接。默认 1 个输入框，可</text>
+  <text x="386" y="432" fill="#6E7E9A" font-size="15" font-family="Arial, PingFang SC, sans-serif">按需继续添加。</text>
+
+  <rect x="386" y="448" width="534" height="286" rx="22" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <text x="410" y="495" fill="#1E2740" font-size="17" font-family="Arial, PingFang SC, sans-serif" font-weight="700">链接 1</text>
+  <rect x="706" y="470" width="76" height="44" rx="16" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <rect x="794" y="470" width="76" height="44" rx="16" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <text x="744" y="498" text-anchor="middle" fill="#344660" font-size="16" font-family="Arial, PingFang SC, sans-serif" font-weight="700">粘贴</text>
+  <text x="832" y="498" text-anchor="middle" fill="#344660" font-size="16" font-family="Arial, PingFang SC, sans-serif" font-weight="700">删除</text>
+
+  <rect x="410" y="530" width="456" height="128" rx="18" fill="#FFFDF8" stroke="#E89500" stroke-width="3"/>
+  <text x="430" y="570" fill="#1F1F1F" font-size="13" font-family="Arial, PingFang SC, sans-serif">https://v.kuaishou.com/KvGL1atJ 神降 "圆头耄耋 "整活</text>
+  <text x="430" y="600" fill="#1F1F1F" font-size="13" font-family="Arial, PingFang SC, sans-serif">"抽象 "壁纸 该作品在快手被播放过4.8万次，点击链接，打</text>
+  <text x="430" y="630" fill="#1F1F1F" font-size="13" font-family="Arial, PingFang SC, sans-serif">开【快手】直接观看！</text>
+
+  <rect x="386" y="734" width="72" height="52" rx="18" fill="url(#primaryBtn)"/>
+  <rect x="478" y="734" width="76" height="52" rx="18" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <rect x="574" y="734" width="138" height="52" rx="18" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <rect x="732" y="734" width="152" height="52" rx="18" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <text x="422" y="768" text-anchor="middle" fill="#FFFFFF" font-size="18" font-family="Arial, PingFang SC, sans-serif" font-weight="700">下载</text>
+  <text x="516" y="768" text-anchor="middle" fill="#344660" font-size="18" font-family="Arial, PingFang SC, sans-serif" font-weight="700">添加</text>
+  <text x="643" y="768" text-anchor="middle" fill="#344660" font-size="18" font-family="Arial, PingFang SC, sans-serif" font-weight="700">粘贴最后一项</text>
+  <text x="808" y="768" text-anchor="middle" fill="#344660" font-size="18" font-family="Arial, PingFang SC, sans-serif" font-weight="700">选择输出目录</text>
+  <text x="386" y="810" fill="#344660" font-size="14" font-family="Arial, PingFang SC, sans-serif">当前输出目录：/Users/yuhaidong/Projects/test</text>
+
+  <text x="1000" y="362" fill="#1E2740" font-size="24" font-family="Arial, PingFang SC, sans-serif" font-weight="700">下载说明</text>
+  <rect x="1000" y="382" width="522" height="258" rx="20" fill="#FFFFFF" stroke="#DDE4EF"/>
+  <text x="1022" y="430" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">输入内容可以是一整段分享文案，程序会自动提取里面的真实链</text>
+  <text x="1022" y="458" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">接。</text>
+  <text x="1022" y="520" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">文件名会优先使用作品标题；标题超过 10 个汉字时会自动截</text>
+  <text x="1022" y="548" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">断。</text>
+  <text x="1022" y="610" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">如果某个平台后续触发风控，可在设置页填写对应 Cookie 作为</text>
+  <text x="1022" y="638" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">兜底。</text>
+  <text x="1022" y="700" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">任务提交后会自动切到任务列表，你可以在那里查看实时进度和</text>
+  <text x="1022" y="728" fill="#2C3C57" font-size="15" font-family="Arial, PingFang SC, sans-serif">失败原因。</text>
+
+  <defs>
+    <radialGradient id="sidebarLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(40 90) rotate(40) scale(480 220)">
+      <stop stop-color="#FFE7BB"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mainLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1460 110) rotate(145) scale(980 760)">
+      <stop stop-color="#D7ECFF"/>
+      <stop offset="1" stop-color="#F7F7F7"/>
+    </radialGradient>
+    <linearGradient id="primaryBtn" x1="360" y1="308" x2="1200" y2="880" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A8070"/>
+      <stop offset="1" stop-color="#1D6EA6"/>
+    </linearGradient>
+    <linearGradient id="catBg" x1="24" y1="82" x2="86" y2="144" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E5EEF9"/>
+      <stop offset="1" stop-color="#D8E6FB"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -4,6 +4,10 @@
 
 ClipLab is a local-first desktop video utility focused on the workflow of “paste a share text -> extract the real video URL -> download the original video”. The current project targets `macOS` first, while keeping the project structure ready for future `Windows` packaging.
 
+## Preview
+
+![ClipLab Preview](./docs/images/app-preview.svg)
+
 ## Features
 
 - Extracts the real video URL from full share text
@@ -176,9 +180,27 @@ ClipLab/
 │  │  └─ main.py                # FastAPI entrypoint
 │  └─ tests/                    # backend tests
 ├─ scripts/                     # development helper scripts
+├─ docs/                        # README preview assets and documentation resources
 ├─ app-data/                    # runtime data directory (ignored)
 └─ tmp/                         # local reference projects (ignored)
 ```
+
+## Icon Location
+
+Place your app icon here:
+
+- `public/assets/icons/app-icon.png`
+
+The app now uses that file for:
+
+- the top-left brand icon
+- the Electron window icon
+- the macOS Dock icon
+
+If you plan to package the app later, it is also a good idea to prepare:
+
+- `public/assets/icons/app-icon.icns`
+- `public/assets/icons/app-icon.ico`
 
 ## Environment Variables
 
