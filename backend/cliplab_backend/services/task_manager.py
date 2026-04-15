@@ -17,7 +17,7 @@ from cliplab_backend.schemas import (
 from cliplab_backend.services.events import EventBus
 from cliplab_backend.services.model_manager import ModelManager
 from cliplab_backend.services.resolver import ResolverService
-from cliplab_backend.services.watermark import WatermarkService
+from cliplab_backend.services.watermark import WatermarkProcessResult, WatermarkService
 from cliplab_backend.storage.db import LogRepository, TaskRepository, utcnow
 
 
@@ -124,13 +124,36 @@ class TaskManager:
                 else:
                     await self._log("info", "task", "开始去水印处理...", task.id, {})
                     self._progress(task.id, 10)
-                    result_path = await asyncio.to_thread(
+                    watermark_result = await asyncio.to_thread(
                         self._run_watermark,
                         item.task_id,
                         item.payload,
                     )
+                    result_path = watermark_result.output_path
+                    next_metadata = {
+                        **task.metadata,
+                        "audioMerged": watermark_result.audio_merged,
+                    }
+                    if watermark_result.warning_message:
+                        next_metadata["warnings"] = [watermark_result.warning_message]
+                        await self._log(
+                            "warning",
+                            "task",
+                            watermark_result.warning_message,
+                            task.id,
+                            {"outputPath": watermark_result.output_path},
+                        )
                     await self._log("info", "task", f"去水印完成：{result_path}", task.id, {})
-                await self._update_task(task, status="succeeded", progress=100, outputPath=result_path)
+                    task = await self._update_task(
+                        task,
+                        status="succeeded",
+                        progress=100,
+                        outputPath=result_path,
+                        metadata=next_metadata,
+                    )
+                    await self._log("info", "task", f"任务执行成功：{result_path}", task.id, {"outputPath": result_path})
+                    continue
+                task = await self._update_task(task, status="succeeded", progress=100, outputPath=result_path)
                 await self._log("info", "task", f"任务执行成功：{result_path}", task.id, {"outputPath": result_path})
             except Exception as error:
                 await self._log("error", "task", f"任务执行失败：{type(error).__name__}: {error}", task.id, {"error": str(error)})
@@ -162,7 +185,9 @@ class TaskManager:
         )
         return output_path
 
-    def _run_watermark(self, task_id: str, payload: CreateDownloadTaskRequest | CreateWatermarkTaskRequest) -> str:
+    def _run_watermark(
+        self, task_id: str, payload: CreateDownloadTaskRequest | CreateWatermarkTaskRequest
+    ) -> WatermarkProcessResult:
         assert isinstance(payload, CreateWatermarkTaskRequest)
         self._progress(task_id, 10)
         return self.watermark_service.process(

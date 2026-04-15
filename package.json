@@ -19,14 +19,19 @@
     "build": "npm run build:renderer && npm run build:electron",
     "build:renderer": "tsc -b && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
+    "build:backend:binary": "node scripts/build-backend-binary.mjs",
+    "prepare:icons": "node scripts/prepare-app-icons.mjs",
     "lint": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
-    "package": "npm run build && electron-builder"
+    "package": "node scripts/package-desktop.mjs",
+    "package:mac": "node scripts/package-desktop.mjs --platform=mac",
+    "package:win": "node scripts/package-desktop.mjs --platform=win"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@fiahfy/icns": "^0.0.7",
     "@types/node": "^22.15.17",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -35,6 +40,7 @@
     "cross-env": "^7.0.3",
     "electron": "^35.2.2",
     "electron-builder": "^25.1.8",
+    "png-to-ico": "^3.0.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "wait-on": "^8.0.3"
@@ -45,7 +51,6 @@
     "files": [
       "dist/**",
       "dist-electron/**",
-      "backend/**",
       "package.json"
     ],
     "directories": {
@@ -53,17 +58,22 @@
     },
     "extraResources": [
       {
-        "from": "backend",
-        "to": "backend"
+        "from": "backend/dist",
+        "to": "backend/dist",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
+      "icon": ".build-resources/icons/icon.icns",
       "target": [
         "dmg"
       ],
       "category": "public.app-category.video"
     },
     "win": {
+      "icon": ".build-resources/icons/icon.ico",
       "target": [
         "nsis"
       ]

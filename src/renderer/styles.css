@@ -490,6 +490,10 @@ input {
   overflow-wrap: anywhere;
 }
 
+.task-meta-value.warning {
+  color: #9c6507;
+}
+
 .task-card-actions {
   justify-content: flex-end;
   flex-wrap: wrap;

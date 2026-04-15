@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -58,6 +59,20 @@ class Settings(BaseSettings):
         path = Path(self.pid_file)
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
+
+    def resolve_ffmpeg_path(self) -> str:
+        if self.ffmpeg_path and self.ffmpeg_path != "ffmpeg":
+            return self.ffmpeg_path
+
+        try:
+            import imageio_ffmpeg
+
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
+
+        system_ffmpeg = shutil.which(self.ffmpeg_path or "ffmpeg")
+        return system_ffmpeg or self.ffmpeg_path or "ffmpeg"
 
 
 settings = Settings()

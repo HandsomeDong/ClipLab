@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import shutil
 import subprocess
 import tempfile
@@ -168,6 +169,13 @@ def build_watermark_output_path(input_path: str, output_directory: str) -> Path:
     return build_unique_mp4_path(output_root, f"{source.stem}_no_watermark")
 
 
+@dataclass(frozen=True)
+class WatermarkProcessResult:
+    output_path: str
+    audio_merged: bool
+    warning_message: str | None = None
+
+
 class WatermarkService:
     def __init__(self) -> None:
         self.supported_algorithms = {"sttn_auto", "lama", "propainter"}
@@ -189,7 +197,7 @@ class WatermarkService:
         region: WatermarkRegion,
         algorithm: str,
         progress_callback: Callable[[int], None],
-    ) -> str:
+    ) -> WatermarkProcessResult:
         self.ensure_models(algorithm)
         source = Path(input_path)
         if not source.exists():
@@ -243,9 +251,9 @@ class WatermarkService:
             writer.release()
 
         try:
-            self._merge_audio(source, temp_path, output_path)
+            audio_result = self._merge_audio(source, temp_path, output_path)
             progress_callback(100)
-            return str(output_path)
+            return audio_result
         finally:
             temp_path.unlink(missing_ok=True)
 
@@ -364,9 +372,9 @@ class WatermarkService:
         alpha = (blurred.astype(np.float32) / 255.0)[:, :, None]
         return np.repeat(alpha, 3, axis=2)
 
-    def _merge_audio(self, source: Path, video_without_audio: Path, output_path: Path) -> None:
+    def _merge_audio(self, source: Path, video_without_audio: Path, output_path: Path) -> WatermarkProcessResult:
         command = [
-            settings.ffmpeg_path,
+            settings.resolve_ffmpeg_path(),
             "-y",
             "-i",
             str(video_without_audio),
@@ -384,6 +392,23 @@ class WatermarkService:
             str(output_path),
         ]
         try:
-            subprocess.run(command, check=True, capture_output=True, text=True)
-        except Exception:
+            completed = subprocess.run(command, check=False, capture_output=True, text=True)
+        except (OSError, subprocess.SubprocessError) as error:
             shutil.copy2(video_without_audio, output_path)
+            return WatermarkProcessResult(
+                output_path=str(output_path),
+                audio_merged=False,
+                warning_message=f"音轨合并失败，已输出静音视频：{error}",
+            )
+
+        if completed.returncode == 0:
+            return WatermarkProcessResult(output_path=str(output_path), audio_merged=True, warning_message=None)
+
+        shutil.copy2(video_without_audio, output_path)
+        stderr = (completed.stderr or completed.stdout or "").strip()
+        detail = stderr or f"ffmpeg exited with code {completed.returncode}"
+        return WatermarkProcessResult(
+            output_path=str(output_path),
+            audio_merged=False,
+            warning_message=f"音轨合并失败，已输出静音视频：{detail}",
+        )

@@ -197,10 +197,12 @@ The app now uses that file for:
 - the Electron window icon
 - the macOS Dock icon
 
-If you plan to package the app later, it is also a good idea to prepare:
+Packaging scripts now generate the platform icons from this PNG automatically:
 
-- `public/assets/icons/app-icon.icns`
-- `public/assets/icons/app-icon.ico`
+- `.icns` for macOS
+- `.ico` for Windows
+
+So `app-icon.png` is the only icon file you need to maintain manually.
 
 ## Environment Variables
 
@@ -241,10 +243,108 @@ npm run build
 npm run package
 ```
 
-Packaging is handled by `electron-builder`:
+You do not need to package the app after every code change.
 
-- macOS: `dmg`
-- Windows: `nsis`
+Packaging is only needed when you want to verify a release build or produce installable artifacts for distribution.
+
+### Pre-package checklist
+
+Release builds use an Electron frontend plus a bundled native Python backend binary.
+
+That means a package build must first produce the backend executable for the current target platform. The new packaging scripts handle this automatically:
+
+- `node scripts/prepare-app-icons.mjs`
+- `node scripts/build-backend-binary.mjs`
+- or the higher-level package commands, which build the backend first and then run `electron-builder`
+
+The first packaging run also downloads:
+
+- the Electron runtime required by `electron-builder`
+- the Node-side icon generation tooling installed with project dependencies
+- `PyInstaller`, fetched through `uv run --with pyinstaller`
+- the bundled `imageio-ffmpeg` runtime used by the backend
+
+So the first run requires network access.
+
+### Package for macOS
+
+Run this on a macOS machine:
+
+```bash
+npm run package:mac
+```
+
+The script runs:
+
+1. `node scripts/prepare-app-icons.mjs --platform=mac`
+2. `npm run build`
+3. `node scripts/build-backend-binary.mjs`
+4. `electron-builder --mac dmg --<current host arch>`
+
+By default, it packages for the current host architecture:
+
+- Apple Silicon Macs usually produce an `arm64` `dmg`
+- Intel Macs usually produce an `x64` `dmg`
+
+Artifacts are written to `dist/`, for example:
+
+- `dist/ClipLab-0.1.0-arm64.dmg`
+
+### Package for Windows
+
+Run this on a Windows machine:
+
+```bash
+npm run package:win
+```
+
+The script runs:
+
+1. `node scripts/prepare-app-icons.mjs --platform=win`
+2. `npm run build`
+3. `node scripts/build-backend-binary.mjs`
+4. `electron-builder --win nsis --<current host arch>`
+
+Artifacts are also written to `dist/`, typically including:
+
+- an `nsis` installer
+- a `win-<arch>-unpacked/` folder
+
+### Current packaging policy and limits
+
+- The current scripts only support packaging on a native host for that same target platform.
+- The reason is that ClipLab ships a native Python backend binary together with the Electron app, so blind cross-platform or cross-arch packaging is unsafe.
+- In practice: package `macOS` on macOS, and package `Windows` on Windows.
+- If you later need extra variants such as `macOS x64`, `macOS universal`, or `Windows arm64`, build and verify them separately in matching platform/architecture environments.
+
+### Packaging notes
+
+- Packaging icons are generated from `public/assets/icons/app-icon.png`; the file must be a square PNG, and the script warns if it is smaller than `1024x1024`.
+- The packaged app now prefers bundled `imageio-ffmpeg` instead of assuming a system-level `ffmpeg` is installed on the target machine.
+- The download path currently also invokes the system `curl`. This is usually fine on modern macOS and Windows systems, but for more robust offline distribution you may want to revisit whether it should be bundled.
+- Before distributing macOS builds broadly, add `Developer ID Application` signing and notarization; otherwise Gatekeeper warnings are expected on other machines.
+- The first packaging run is noticeably slower because it downloads Electron runtime assets and PyInstaller-related dependencies.
+- If watermark processing succeeds but audio merge fails, the app now keeps the silent result and surfaces a clear warning in the task list and logs instead of failing silently.
+
+### Run the steps manually
+
+If you want to validate each step individually, you can split them manually:
+
+```bash
+node scripts/prepare-app-icons.mjs --platform=mac
+npm run build
+node scripts/build-backend-binary.mjs
+npx electron-builder --mac dmg --arm64
+```
+
+Or on Windows:
+
+```bash
+node scripts/prepare-app-icons.mjs --platform=win
+npm run build
+node scripts/build-backend-binary.mjs
+npx electron-builder --win nsis --x64
+```
 
 ## Verified Download Samples
 
