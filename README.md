@@ -202,10 +202,12 @@ ClipLab/
 - Electron 窗口图标
 - macOS Dock 图标
 
-如果你后续还要做正式打包，建议额外准备：
+正式打包时，脚本会基于这张 PNG 自动生成：
 
-- `public/assets/icons/app-icon.icns`
-- `public/assets/icons/app-icon.ico`
+- macOS 所需的 `.icns`
+- Windows 所需的 `.ico`
+
+因此你只需要维护这一张源图即可。
 
 ## 环境变量
 
@@ -252,10 +254,108 @@ npm run build
 npm run package
 ```
 
-打包输出由 `electron-builder` 负责：
+日常开发不需要每次都打包。
 
-- macOS：`dmg`
-- Windows：`nsis`
+只有在你要验证发布结果或准备分发安装包时，才需要执行打包命令。
+
+### 打包前准备
+
+发布版现在采用“Electron 前端 + 本地 Python 后端二进制”的结构。
+
+也就是说，正式打包前需要先准备好当前平台的后端可执行文件，脚本会自动完成这一步：
+
+- `node scripts/prepare-app-icons.mjs`
+- `node scripts/build-backend-binary.mjs`
+- 或直接执行完整打包命令，由它先构建后端再调用 `electron-builder`
+
+首次执行时会额外下载：
+
+- `electron-builder` 需要的 Electron 运行时
+- `png-to-ico` 依赖的 Node 打包能力（安装依赖时）
+- `uv run --with pyinstaller` 需要的 `PyInstaller`
+- 后端内置使用的 `imageio-ffmpeg`
+
+因此首次打包需要联网。
+
+### macOS 打包
+
+在 macOS 机器上执行：
+
+```bash
+npm run package:mac
+```
+
+脚本会依次执行：
+
+1. `node scripts/prepare-app-icons.mjs --platform=mac`
+2. `npm run build`
+3. `node scripts/build-backend-binary.mjs`
+4. `electron-builder --mac dmg --<当前机器架构>`
+
+默认会生成当前机器架构对应的安装包：
+
+- Apple Silicon 机器通常输出 `arm64` 的 `dmg`
+- Intel Mac 通常输出 `x64` 的 `dmg`
+
+产物会写到 `dist/` 目录，例如：
+
+- `dist/ClipLab-0.1.0-arm64.dmg`
+
+### Windows 打包
+
+在 Windows 机器上执行：
+
+```bash
+npm run package:win
+```
+
+脚本会依次执行：
+
+1. `node scripts/prepare-app-icons.mjs --platform=win`
+2. `npm run build`
+3. `node scripts/build-backend-binary.mjs`
+4. `electron-builder --win nsis --<当前机器架构>`
+
+产物同样会输出到 `dist/` 目录，通常会得到：
+
+- `nsis` 安装包
+- `win-<arch>-unpacked/` 目录
+
+### 当前打包策略与限制
+
+- 当前脚本只支持“在目标平台的原生机器上打包该平台的包”。
+- 原因是桌面端会随应用一起分发一个本地 Python 后端二进制，不适合在另一种平台或另一种 CPU 架构上盲目交叉构建。
+- 例如：应当在 macOS 机器上打 `macOS` 包，在 Windows 机器上打 `Windows` 包。
+- 如果你后面要额外做 `macOS x64`、`macOS universal`、`Windows arm64` 这类包，建议分别在匹配的平台与架构环境中单独构建并验证。
+
+### 打包注意事项
+
+- 打包图标统一从 `public/assets/icons/app-icon.png` 自动生成；这张图必须是正方形 PNG，尺寸小于 `1024x1024` 时脚本会警告，但仍允许继续打包。
+- 当前正式包会优先使用内置的 `imageio-ffmpeg`，不再默认依赖目标机器是否安装系统 `ffmpeg`。
+- 下载链路当前也直接调用系统 `curl`；在大多数现代 macOS / Windows 环境通常可用，但如果你要做更稳的离线分发，后续最好一起评估是否内置。
+- macOS 正式分发前，建议补上 `Developer ID Application` 签名与 notarization；否则其他机器上可能会遇到 Gatekeeper 提示。
+- 第一次运行打包脚本时耗时会明显更长，因为要下载 Electron 运行时和 PyInstaller 相关依赖。
+- 如果去水印视频处理成功但音轨合并失败，任务会保留静音结果并在任务列表和日志里给出明确 warning，不再静默吞掉问题。
+
+### 手动拆分执行
+
+如果你想单独验证每一步，也可以分开执行：
+
+```bash
+node scripts/prepare-app-icons.mjs --platform=mac
+npm run build
+node scripts/build-backend-binary.mjs
+npx electron-builder --mac dmg --arm64
+```
+
+或在 Windows 上：
+
+```bash
+node scripts/prepare-app-icons.mjs --platform=win
+npm run build
+node scripts/build-backend-binary.mjs
+npx electron-builder --win nsis --x64
+```
 
 ## 已验证的下载样例
 

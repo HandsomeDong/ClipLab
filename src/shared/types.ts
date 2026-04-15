@@ -67,6 +67,12 @@ export interface ModelPackage {
   description: string;
 }
 
+export interface TaskMetadata {
+  audioMerged?: boolean;
+  warnings?: string[];
+  [key: string]: unknown;
+}
+
 export interface TaskRecord {
   id: string;
   type: TaskType;
@@ -78,7 +84,7 @@ export interface TaskRecord {
   errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
-  metadata: Record<string, unknown>;
+  metadata: TaskMetadata;
 }
 
 export interface LogRecord {

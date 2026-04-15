@@ -21,44 +21,52 @@ export function TaskList({ tasks, onOpenFolder }: TaskListProps) {
 
   return (
     <div className="task-list">
-      {tasks.map((task) => (
-        <article key={task.id} className="task-card">
-          <header className="task-card-header">
-            <span className="task-kind">{task.type === "download" ? "下载任务" : "去水印任务"}</span>
-            <span className={`task-status ${task.status}`}>{statusLabelMap[task.status]}</span>
-          </header>
-          <div className="task-input-block">
-            <p className="task-input-text">{task.input}</p>
-          </div>
-          <div className="progress-row">
-            <div className="progress-bar">
-              <span style={{ width: `${task.progress}%` }} />
+      {tasks.map((task) => {
+        const warnings = Array.isArray(task.metadata.warnings)
+          ? task.metadata.warnings.filter((warning): warning is string => typeof warning === "string" && warning.length > 0)
+          : [];
+        const statusText =
+          task.errorMessage || warnings[0] || (task.status === "succeeded" ? "任务已完成" : "任务正常运行");
+
+        return (
+          <article key={task.id} className="task-card">
+            <header className="task-card-header">
+              <span className="task-kind">{task.type === "download" ? "下载任务" : "去水印任务"}</span>
+              <span className={`task-status ${task.status}`}>{statusLabelMap[task.status]}</span>
+            </header>
+            <div className="task-input-block">
+              <p className="task-input-text">{task.input}</p>
             </div>
-            <strong>{task.progress}%</strong>
-          </div>
-          <div className="task-meta-list">
-            <div className="task-meta-row">
-              <span className="task-meta-label">输出</span>
-              <span className="task-meta-value">{task.outputPath || "处理中"}</span>
+            <div className="progress-row">
+              <div className="progress-bar">
+                <span style={{ width: `${task.progress}%` }} />
+              </div>
+              <strong>{task.progress}%</strong>
             </div>
-            <div className="task-meta-row">
-              <span className="task-meta-label">状态</span>
-              <span className="task-meta-value">{task.errorMessage || (task.status === "succeeded" ? "任务已完成" : "任务正常运行")}</span>
+            <div className="task-meta-list">
+              <div className="task-meta-row">
+                <span className="task-meta-label">输出</span>
+                <span className="task-meta-value">{task.outputPath || "处理中"}</span>
+              </div>
+              <div className="task-meta-row">
+                <span className="task-meta-label">状态</span>
+                <span className={`task-meta-value ${warnings.length ? "warning" : ""}`}>{statusText}</span>
+              </div>
             </div>
-          </div>
-          {task.status === "succeeded" && task.outputPath ? (
-            <div className="task-card-actions">
-              <button
-                className="secondary-button small-button"
-                onClick={() => onOpenFolder(task.outputPath!)}
-                type="button"
-              >
-                打开文件夹
-              </button>
-            </div>
-          ) : null}
-        </article>
-      ))}
+            {task.status === "succeeded" && task.outputPath ? (
+              <div className="task-card-actions">
+                <button
+                  className="secondary-button small-button"
+                  onClick={() => onOpenFolder(task.outputPath!)}
+                  type="button"
+                >
+                  打开文件夹
+                </button>
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }

@@ -43,6 +43,9 @@ models-cache/
 # Packaged artifacts
 release/
 out/
+.build-resources/
+backend/dist/
+backend/build/
 *.dmg
 *.exe
 *.AppImage
