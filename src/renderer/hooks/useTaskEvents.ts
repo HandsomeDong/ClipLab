@@ -33,6 +33,9 @@ export function useTaskEvents(
         } catch {
           onBackendState(false);
         }
+      },
+      () => {
+        onBackendState(false);
       }
     );
 
