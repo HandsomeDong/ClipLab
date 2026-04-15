@@ -1,8 +1,11 @@
 import { useState } from "react";
+import type { BackendStartupState } from "../../shared/types";
 
 interface SidebarProps {
   current: string;
   onSelect: (view: string) => void;
+  backendStartup: BackendStartupState;
+  showBackendStartup: boolean;
 }
 
 const BRAND_ICON_SRC = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, "")}assets/icons/app-icon.png`;
@@ -14,7 +17,7 @@ const items = [
   { id: "settings", label: "设置" }
 ];
 
-export function Sidebar({ current, onSelect }: SidebarProps) {
+export function Sidebar({ current, onSelect, backendStartup, showBackendStartup }: SidebarProps) {
   const [iconFailed, setIconFailed] = useState(false);
 
   return (
@@ -51,10 +54,29 @@ export function Sidebar({ current, onSelect }: SidebarProps) {
           ))}
         </nav>
       </div>
-      <div className="sidebar-footer">
-        <span>MVP</span>
-        <small>macOS first, Windows ready</small>
-      </div>
+      {showBackendStartup ? (
+        <div className="sidebar-footer">
+          <div className={`backend-startup-card sidebar-startup-card ${backendStartup.phase}`}>
+            <div className="backend-startup-header">
+              <strong>{backendStartup.label}</strong>
+              <span>{Math.round(backendStartup.progress)}%</span>
+            </div>
+            <div
+              className="backend-startup-progress"
+              role="progressbar"
+              aria-label={backendStartup.label}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={Math.round(backendStartup.progress)}
+            >
+              <span style={{ width: `${Math.max(0, Math.min(100, backendStartup.progress))}%` }} />
+            </div>
+            <p>{backendStartup.detail}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="sidebar-footer" />
+      )}
     </aside>
   );
 }

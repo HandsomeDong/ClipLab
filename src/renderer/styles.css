@@ -143,9 +143,7 @@ input {
 }
 
 .sidebar-footer {
-  color: var(--muted);
-  display: grid;
-  gap: 4px;
+  margin-top: 18px;
 }
 
 .content {
@@ -174,6 +172,13 @@ input {
 
 .topbar {
   overflow: hidden;
+}
+
+.topbar-side {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  flex-shrink: 0;
 }
 
 .topbar > div:first-child {
@@ -219,14 +224,104 @@ input {
   color: var(--primary-dark);
 }
 
+.pill.starting {
+  background: rgba(193, 125, 22, 0.16);
+  color: #8e5d09;
+}
+
 .pill.offline {
   background: rgba(182, 61, 44, 0.14);
   color: #973927;
 }
 
+.pill.error {
+  background: rgba(182, 61, 44, 0.18);
+  color: #8f2515;
+}
+
 .pill.neutral {
   background: rgba(20, 77, 143, 0.11);
   color: #154d8f;
+}
+
+.backend-startup-card {
+  width: min(360px, 38vw);
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(16, 34, 66, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 12px 30px rgba(31, 52, 84, 0.08);
+}
+
+.sidebar-startup-card {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.sidebar-startup-card p {
+  margin-bottom: 0;
+}
+
+.backend-startup-card.waiting,
+.backend-startup-card.waiting_external,
+.backend-startup-card.checking,
+.backend-startup-card.cleaning,
+.backend-startup-card.starting {
+  border-color: rgba(193, 125, 22, 0.22);
+  background: linear-gradient(180deg, rgba(255, 252, 245, 0.94), rgba(255, 255, 255, 0.84));
+}
+
+.backend-startup-card.error,
+.backend-startup-card.offline {
+  border-color: rgba(182, 61, 44, 0.18);
+  background: linear-gradient(180deg, rgba(255, 245, 242, 0.94), rgba(255, 255, 255, 0.84));
+}
+
+.backend-startup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.backend-startup-header strong {
+  font-size: 0.94rem;
+}
+
+.backend-startup-header span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.backend-startup-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(20, 77, 143, 0.1);
+}
+
+.backend-startup-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0a7f6f 0%, #1e8cc8 100%);
+  transition: width 0.24s ease;
+}
+
+.backend-startup-card.error .backend-startup-progress span,
+.backend-startup-card.offline .backend-startup-progress span {
+  background: linear-gradient(90deg, #c55b43 0%, #e18b74 100%);
+}
+
+.backend-startup-card p {
+  margin-top: 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .panel-grid {
@@ -712,6 +807,19 @@ small {
     height: auto;
     min-height: auto;
     overflow: visible;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-side {
+    justify-items: stretch;
+  }
+
+  .status-pills {
+    flex-wrap: wrap;
   }
 
   .panel-grid,

@@ -14,6 +14,26 @@ export interface AppConfig {
   kuaishouCookie?: string;
 }
 
+export type BackendStartupPhase =
+  | "idle"
+  | "checking"
+  | "cleaning"
+  | "starting"
+  | "waiting"
+  | "waiting_external"
+  | "online"
+  | "offline"
+  | "error";
+
+export interface BackendStartupState {
+  phase: BackendStartupPhase;
+  label: string;
+  detail: string;
+  progress: number;
+  managed: boolean;
+  updatedAt: string;
+}
+
 export interface MediaSource {
   platform: string;
   shareUrl: string;
@@ -110,10 +130,12 @@ declare global {
       pickDirectory: () => Promise<string | null>;
       pickVideoFile: () => Promise<string | null>;
       getAppConfig: () => Promise<AppConfig>;
+      getBackendStartupState: () => Promise<BackendStartupState>;
       setAppConfig: (config: AppConfig) => Promise<AppConfig>;
       readClipboardText: () => Promise<string>;
       openFolder: (path: string) => Promise<void>;
-      subscribeTaskEvents: (url: string, onMessage: (payload: string) => void) => () => void;
+      subscribeBackendStartup: (onStateChange: (state: BackendStartupState) => void) => () => void;
+      subscribeTaskEvents: (url: string, onMessage: (payload: string) => void, onError?: () => void) => () => void;
     };
   }
 }

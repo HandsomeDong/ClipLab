@@ -5,6 +5,7 @@ import { TaskList } from "./components/TaskList";
 import { useTaskEvents } from "./hooks/useTaskEvents";
 import type {
   AppConfig,
+  BackendStartupState,
   BatchDownloadResponse,
   ClearHistoryResponse,
   LogRecord,
@@ -21,6 +22,15 @@ const emptyConfig: AppConfig = {
   backendUrl: "http://127.0.0.1:8765",
   douyinCookie: "",
   kuaishouCookie: ""
+};
+
+const emptyBackendStartupState: BackendStartupState = {
+  phase: "checking",
+  label: "检测后端状态",
+  detail: "正在读取后端启动状态。",
+  progress: 5,
+  managed: false,
+  updatedAt: ""
 };
 
 function toSafeFileUrl(filePath: string) {
@@ -79,7 +89,8 @@ function sortTasks(tasks: TaskRecord[]) {
 export default function App() {
   const [view, setView] = useState<View>("download");
   const [config, setConfig] = useState<AppConfig>(emptyConfig);
-  const [backendOnline, setBackendOnline] = useState(false);
+  const [backendReachable, setBackendReachable] = useState(false);
+  const [backendStartup, setBackendStartup] = useState<BackendStartupState>(emptyBackendStartupState);
   const [shareInputs, setShareInputs] = useState<string[]>([""]);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [clearHistoryLoading, setClearHistoryLoading] = useState(false);
@@ -101,6 +112,31 @@ export default function App() {
   const [videoDisplayRect, setVideoDisplayRect] = useState<{ width: number; height: number } | null>(null);
 
   const backendUrl = config.backendUrl || emptyConfig.backendUrl;
+  const backendOnline = backendReachable || backendStartup.phase === "online";
+  const backendStarting =
+    !backendOnline &&
+    (backendStartup.phase === "checking" ||
+      backendStartup.phase === "cleaning" ||
+      backendStartup.phase === "starting" ||
+      backendStartup.phase === "waiting" ||
+      backendStartup.phase === "waiting_external");
+  const backendStatusClassName = backendOnline
+    ? "pill online"
+    : backendStartup.phase === "error"
+      ? "pill error"
+      : backendStarting
+        ? "pill starting"
+        : "pill offline";
+  const backendStatusText = backendOnline
+    ? "后端在线"
+    : backendStartup.phase === "error"
+      ? "后端异常"
+      : backendStarting
+        ? "后端启动中"
+        : backendStartup.phase === "waiting_external"
+          ? "等待后端"
+          : "后端离线";
+  const showBackendStartupCard = !backendOnline && backendStartup.phase !== "idle";
 
   const refreshTasks = useCallback(async () => {
     if (!backendUrl) {
@@ -109,9 +145,9 @@ export default function App() {
     try {
       const data = await fetchJson<TaskRecord[]>(`${backendUrl}/api/tasks`);
       setTasks(sortTasks(data));
-      setBackendOnline(true);
+      setBackendReachable(true);
     } catch {
-      setBackendOnline(false);
+      setBackendReachable(false);
     }
   }, [backendUrl]);
 
@@ -164,7 +200,7 @@ export default function App() {
       setLogs((current) => [log, ...current].slice(0, 40));
     }, []),
     useCallback((online: boolean) => {
-      setBackendOnline(online);
+      setBackendReachable(online);
     }, [])
   );
 
@@ -175,11 +211,41 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let disposed = false;
+
+    window.cliplab.getBackendStartupState().then((state) => {
+      if (!disposed) {
+        setBackendStartup(state);
+      }
+    });
+
+    const unsubscribe = window.cliplab.subscribeBackendStartup((state) => {
+      if (!disposed) {
+        setBackendStartup(state);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     refreshTasks();
     refreshModels();
     refreshLogs();
     refreshServerInfo();
   }, [refreshLogs, refreshModels, refreshServerInfo, refreshTasks]);
+
+  useEffect(() => {
+    if (!backendOnline) {
+      return;
+    }
+
+    void refreshModels();
+    void refreshServerInfo();
+  }, [backendOnline, refreshModels, refreshServerInfo]);
 
   const updateShareInput = (index: number, value: string) => {
     setShareInputs((current) => current.map((item, itemIndex) => (itemIndex === index ? value : item)));
@@ -491,18 +557,23 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar current={view} onSelect={(next) => setView(next as View)} />
+      <Sidebar
+        current={view}
+        onSelect={(next) => setView(next as View)}
+        backendStartup={backendStartup}
+        showBackendStartup={showBackendStartupCard}
+      />
       <main className="content">
         <header className="topbar">
           <div>
             <h2>{view === "download" ? "链接下载" : view === "watermark" ? "去水印" : view === "tasks" ? "任务列表" : "设置"}</h2>
             <p>{notice}</p>
           </div>
-          <div className="status-pills">
-            <span className={backendOnline ? "pill online" : "pill offline"}>
-              {backendOnline ? "后端在线" : "后端离线"}
-            </span>
-            <span className="pill neutral">{taskCountLabel}</span>
+          <div className="topbar-side">
+            <div className="status-pills">
+              <span className={backendStatusClassName}>{backendStatusText}</span>
+              <span className="pill neutral">{taskCountLabel}</span>
+            </div>
           </div>
         </header>
 
@@ -800,21 +871,32 @@ export default function App() {
             <article className="panel panel-scroll settings-model-panel">
               <h3>模型管理</h3>
               <div className="model-list settings-model-list">
-                {models.map((model) => (
-                  <div key={model.id} className="model-card">
-                    <div>
-                      <strong>{model.id}</strong>
-                      <p>{model.description}</p>
+                {models.length > 0 ? (
+                  models.map((model) => (
+                    <div key={model.id} className="model-card">
+                      <div>
+                        <strong>{model.id}</strong>
+                        <p>{model.description}</p>
+                      </div>
+                      <div className="model-meta">
+                        <span>{(model.size / 1024 / 1024).toFixed(1)} MB</span>
+                        <span>{model.installed ? "已安装" : model.downloadStatus}</span>
+                      </div>
+                      <button
+                        className="primary-button"
+                        disabled={model.installed}
+                        onClick={() => onDownloadModel(model.id)}
+                        type="button"
+                      >
+                        {model.installed ? "已就绪" : "下载模型"}
+                      </button>
                     </div>
-                    <div className="model-meta">
-                      <span>{(model.size / 1024 / 1024).toFixed(1)} MB</span>
-                      <span>{model.installed ? "已安装" : model.downloadStatus}</span>
-                    </div>
-                    <button className="primary-button" disabled={model.installed} onClick={() => onDownloadModel(model.id)} type="button">
-                      {model.installed ? "已就绪" : "下载模型"}
-                    </button>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    {backendOnline ? "模型列表暂时还没加载出来，可以点上方刷新或稍等片刻。" : "后端就绪后，这里会自动显示可用模型。"}
                   </div>
-                ))}
+                )}
               </div>
             </article>
             <article className="panel">
