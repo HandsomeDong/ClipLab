@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 TaskType = Literal["download", "remove_watermark"]
 TaskStatus = Literal["queued", "running", "succeeded", "failed", "canceled", "interrupted"]
-AlgorithmId = Literal["sttn_auto", "lama"]
+AlgorithmId = Literal["sttn_auto", "lama", "propainter"]
 
 
 class WatermarkRegion(BaseModel):
@@ -106,9 +106,14 @@ class BatchDownloadResponse(BaseModel):
 
 class CreateWatermarkTaskRequest(BaseModel):
     inputPath: str
-    outputDirectory: str
+    outputDirectory: str = ""
     region: WatermarkRegion
     algorithm: AlgorithmId = "sttn_auto"
+
+
+class ClearHistoryResponse(BaseModel):
+    clearedTasks: int
+    clearedLogs: int
 
 
 class DownloadModelRequest(BaseModel):

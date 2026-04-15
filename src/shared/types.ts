@@ -8,7 +8,7 @@ export type TaskStatus =
   | "interrupted";
 
 export interface AppConfig {
-  outputDirectory: string;
+  downloadOutputDirectory: string;
   backendUrl: string;
   douyinCookie?: string;
   kuaishouCookie?: string;
@@ -43,6 +43,11 @@ export interface BatchTaskError {
 export interface BatchDownloadResponse {
   tasks: TaskRecord[];
   failed: BatchTaskError[];
+}
+
+export interface ClearHistoryResponse {
+  clearedTasks: number;
+  clearedLogs: number;
 }
 
 export interface WatermarkRegion {
@@ -101,6 +106,7 @@ declare global {
       getAppConfig: () => Promise<AppConfig>;
       setAppConfig: (config: AppConfig) => Promise<AppConfig>;
       readClipboardText: () => Promise<string>;
+      openFolder: (path: string) => Promise<void>;
       subscribeTaskEvents: (url: string, onMessage: (payload: string) => void) => () => void;
     };
   }

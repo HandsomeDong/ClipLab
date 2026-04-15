@@ -40,15 +40,18 @@ def sanitize_title(title: str) -> str:
 
 def build_output_path(output_dir: str, title: str, fallback_stem: str) -> Path:
     stem = sanitize_title(title) or fallback_stem
-    base = Path(output_dir)
-    base.mkdir(parents=True, exist_ok=True)
-    output = base / f"{stem}.mp4"
+    return build_unique_mp4_path(Path(output_dir), stem)
+
+
+def build_unique_mp4_path(base_dir: Path, stem: str) -> Path:
+    base_dir.mkdir(parents=True, exist_ok=True)
+    output = base_dir / f"{stem}.mp4"
     if not output.exists():
         return output
 
     index = 2
     while True:
-        candidate = base / f"{stem} ({index}).mp4"
+        candidate = base_dir / f"{stem} ({index}).mp4"
         if not candidate.exists():
             return candidate
         index += 1

@@ -1,7 +1,12 @@
 import numpy as np
 
 from cliplab_backend.schemas import WatermarkRegion
-from cliplab_backend.services.watermark import clamp_region, create_mask, get_inpaint_areas_by_mask
+from cliplab_backend.services.watermark import (
+    build_watermark_output_path,
+    clamp_region,
+    create_mask,
+    get_inpaint_areas_by_mask,
+)
 
 
 def test_clamp_region_maps_normalized_coordinates():
@@ -26,3 +31,13 @@ def test_get_inpaint_areas_stays_compact_for_corner_watermark():
     assert ymin <= 130 < ymax
     assert xmin <= 250 < xmax
     assert xmax - xmin < 140
+
+
+def test_build_watermark_output_path_defaults_to_input_directory(tmp_path):
+    input_path = tmp_path / "demo.mp4"
+    input_path.write_bytes(b"video")
+
+    output_path = build_watermark_output_path(str(input_path), "")
+
+    assert output_path.parent == tmp_path
+    assert output_path.name == "demo_no_watermark.mp4"

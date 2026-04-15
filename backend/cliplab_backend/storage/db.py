@@ -118,6 +118,16 @@ class TaskRepository:
                 (now,),
             )
 
+    def clear_task_history(self) -> int:
+        with self.database.connection() as conn:
+            cursor = conn.execute(
+                """
+                DELETE FROM tasks
+                WHERE status NOT IN ('queued', 'running')
+                """
+            )
+        return int(cursor.rowcount or 0)
+
     @staticmethod
     def _row_to_task(row: sqlite3.Row) -> TaskRecord:
         return TaskRecord(
@@ -182,6 +192,11 @@ class LogRepository:
                 (limit,),
             ).fetchall()
         return [self._row_to_log(row) for row in rows]
+
+    def clear_logs(self) -> int:
+        with self.database.connection() as conn:
+            cursor = conn.execute("DELETE FROM logs")
+        return int(cursor.rowcount or 0)
 
     @staticmethod
     def _row_to_log(row: sqlite3.Row) -> LogRecord:

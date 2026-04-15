@@ -1,6 +1,6 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -21,7 +21,7 @@ function getUserDataFile() {
 function readAppConfig(): AppConfig {
   const configFile = getUserDataFile();
   const defaults: AppConfig = {
-    outputDirectory: path.join(app.getPath("videos"), "ClipLab"),
+    downloadOutputDirectory: path.join(app.getPath("videos"), "ClipLab"),
     backendUrl: process.env.CLIPLAB_BACKEND_URL || DEFAULT_BACKEND_URL,
     douyinCookie: "",
     kuaishouCookie: ""
@@ -33,8 +33,12 @@ function readAppConfig(): AppConfig {
 
   try {
     const raw = JSON.parse(readFileSync(configFile, "utf-8")) as Partial<AppConfig>;
+    const legacyOutputDirectory =
+      typeof (raw as { outputDirectory?: string }).outputDirectory === "string"
+        ? (raw as { outputDirectory?: string }).outputDirectory
+        : "";
     return {
-      outputDirectory: raw.outputDirectory || defaults.outputDirectory,
+      downloadOutputDirectory: raw.downloadOutputDirectory || legacyOutputDirectory || defaults.downloadOutputDirectory,
       backendUrl: raw.backendUrl || defaults.backendUrl,
       douyinCookie: raw.douyinCookie || "",
       kuaishouCookie: raw.kuaishouCookie || ""
@@ -186,10 +190,10 @@ async function createWindow() {
   await cleanupStaleBackendPidFile();
 
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1200,
-    minHeight: 720,
+    width: 1320,
+    height: 860,
+    minWidth: 1120,
+    minHeight: 680,
     title: "ClipLab",
     icon,
     webPreferences: {
@@ -238,6 +242,26 @@ app.whenReady().then(async () => {
     return nextConfig;
   });
   ipcMain.handle("clipboard:read-text", () => clipboard.readText());
+  ipcMain.handle("shell:open-folder", async (_event, targetPath: string) => {
+    if (!targetPath) {
+      return;
+    }
+    if (existsSync(targetPath)) {
+      if (statSync(targetPath).isDirectory()) {
+        const errorMessage = await shell.openPath(targetPath);
+        if (errorMessage) {
+          throw new Error(errorMessage);
+        }
+        return;
+      }
+      shell.showItemInFolder(targetPath);
+      return;
+    }
+    const errorMessage = await shell.openPath(path.dirname(targetPath));
+    if (errorMessage) {
+      throw new Error(errorMessage);
+    }
+  });
   ipcMain.handle("dialog:pick-directory", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"]

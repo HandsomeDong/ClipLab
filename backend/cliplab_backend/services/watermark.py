@@ -10,8 +10,16 @@ import cv2
 import numpy as np
 
 from cliplab_backend.config import settings
-from cliplab_backend.inpaint import STTNInpaintError, STTNInpaintRuntime
+from cliplab_backend.inpaint import (
+    LaMaInpaintError,
+    LaMaInpaintRuntime,
+    ProPainterError,
+    ProPainterInpaintRuntime,
+    STTNInpaintError,
+    STTNInpaintRuntime,
+)
 from cliplab_backend.schemas import WatermarkRegion
+from cliplab_backend.services.download_utils import build_unique_mp4_path
 
 MASK_EXPAND_PIXELS = 12
 CHUNK_FRAME_COUNT = 80
@@ -154,11 +162,21 @@ def get_inpaint_areas_by_mask(
     return areas
 
 
+def build_watermark_output_path(input_path: str, output_directory: str) -> Path:
+    source = Path(input_path)
+    output_root = Path(output_directory).expanduser() if output_directory.strip() else source.parent
+    return build_unique_mp4_path(output_root, f"{source.stem}_no_watermark")
+
+
 class WatermarkService:
     def __init__(self) -> None:
-        self.supported_algorithms = {"sttn_auto", "lama"}
+        self.supported_algorithms = {"sttn_auto", "lama", "propainter"}
         self._sttn_runtime: STTNInpaintRuntime | None = None
         self._sttn_runtime_failed = False
+        self._lama_runtime: LaMaInpaintRuntime | None = None
+        self._lama_runtime_failed = False
+        self._propainter_runtime: ProPainterInpaintRuntime | None = None
+        self._propainter_runtime_failed = False
 
     def ensure_models(self, algorithm: str) -> None:
         if algorithm not in self.supported_algorithms:
@@ -177,9 +195,7 @@ class WatermarkService:
         if not source.exists():
             raise FileNotFoundError(f"Input video does not exist: {input_path}")
 
-        output_root = Path(output_directory)
-        output_root.mkdir(parents=True, exist_ok=True)
-        output_path = output_root / f"{source.stem}_clean.mp4"
+        output_path = build_watermark_output_path(input_path, output_directory)
 
         capture = cv2.VideoCapture(str(source))
         if not capture.isOpened():
@@ -226,10 +242,12 @@ class WatermarkService:
             capture.release()
             writer.release()
 
-        self._merge_audio(source, temp_path, output_path)
-        temp_path.unlink(missing_ok=True)
-        progress_callback(100)
-        return str(output_path)
+        try:
+            self._merge_audio(source, temp_path, output_path)
+            progress_callback(100)
+            return str(output_path)
+        finally:
+            temp_path.unlink(missing_ok=True)
 
     def _read_chunk(self, capture: cv2.VideoCapture) -> list[np.ndarray]:
         frames: list[np.ndarray] = []
@@ -272,9 +290,20 @@ class WatermarkService:
             if sttn_runtime is not None:
                 return sttn_runtime.inpaint(crops, local_mask)
 
+        if algorithm == "lama":
+            lama_runtime = self._get_lama_runtime()
+            if lama_runtime is not None:
+                return lama_runtime.inpaint(crops, local_mask)
+
+        if algorithm == "propainter":
+            propainter_runtime = self._get_propainter_runtime()
+            if propainter_runtime is not None:
+                return propainter_runtime.inpaint(crops, local_mask)
+
+        # Fallback to OpenCV if model not available
         radius = 5 if algorithm == "lama" else 3
         repaired = [cv2.inpaint(crop, local_mask, radius, cv2.INPAINT_TELEA) for crop in crops]
-        if algorithm == "sttn_auto" and len(repaired) > 1:
+        if algorithm in ("sttn_auto", "propainter") and len(repaired) > 1:
             repaired = self._temporal_stabilize(repaired, local_mask)
         return repaired
 
@@ -290,6 +319,31 @@ class WatermarkService:
             self._sttn_runtime_failed = True
             self._sttn_runtime = None
         return self._sttn_runtime
+
+    def _get_lama_runtime(self) -> LaMaInpaintRuntime | None:
+        if self._lama_runtime_failed:
+            return None
+        if self._lama_runtime is not None:
+            return self._lama_runtime
+        model_path = settings.models_dir / "big-lama.pt"
+        try:
+            self._lama_runtime = LaMaInpaintRuntime(model_path)
+        except LaMaInpaintError:
+            self._lama_runtime_failed = True
+            self._lama_runtime = None
+        return self._lama_runtime
+
+    def _get_propainter_runtime(self) -> ProPainterInpaintRuntime | None:
+        if self._propainter_runtime_failed:
+            return None
+        if self._propainter_runtime is not None:
+            return self._propainter_runtime
+        try:
+            self._propainter_runtime = ProPainterInpaintRuntime(settings.models_dir)
+        except ProPainterError:
+            self._propainter_runtime_failed = True
+            self._propainter_runtime = None
+        return self._propainter_runtime
 
     def _temporal_stabilize(self, crops: list[np.ndarray], local_mask: np.ndarray) -> list[np.ndarray]:
         mask_bool = local_mask > 0

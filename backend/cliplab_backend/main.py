@@ -11,10 +11,12 @@ from cliplab_backend.config import settings
 from cliplab_backend.schemas import (
     BatchDownloadResponse,
     BatchTaskError,
+    ClearHistoryResponse,
     CreateBatchDownloadRequest,
     CreateDownloadTaskRequest,
     CreateWatermarkTaskRequest,
     DownloadModelRequest,
+    LogRecord,
     ResolveLinkRequest,
     ResolveLinkResponse,
     ServerInfo,
@@ -174,7 +176,7 @@ async def create_watermark_task(payload: CreateWatermarkTaskRequest, request: Re
     try:
         normalized = payload.model_copy(
             update={
-                "outputDirectory": payload.outputDirectory.strip() or str(settings.default_output_dir),
+                "outputDirectory": payload.outputDirectory.strip(),
             }
         )
         task = await task_manager.create_watermark_task(normalized)
@@ -196,8 +198,15 @@ async def list_tasks() -> list[TaskRecord]:
 
 
 @app.get("/api/logs")
-async def list_logs():
+async def list_logs() -> list[LogRecord]:
     return log_repository.list()
+
+
+@app.post("/api/history/clear")
+async def clear_history() -> ClearHistoryResponse:
+    cleared_tasks = repository.clear_task_history()
+    cleared_logs = log_repository.clear_logs()
+    return ClearHistoryResponse(clearedTasks=cleared_tasks, clearedLogs=cleared_logs)
 
 
 @app.get("/api/tasks/{task_id}")

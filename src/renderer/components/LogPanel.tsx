@@ -9,16 +9,23 @@ export function LogPanel({ logs }: LogPanelProps) {
     return <div className="empty-state">还没有日志，提交任务后这里会显示处理记录。</div>;
   }
 
+  const sourceLabelMap: Record<LogRecord["source"], string> = {
+    desktop: "桌面端",
+    api: "API",
+    task: "任务",
+    remote_web: "内网页"
+  };
+
   return (
     <div className="log-list">
       {logs.map((log) => (
         <article key={log.id} className={`log-card ${log.level}`}>
-          <header>
-            <strong>{log.source}</strong>
+          <header className="log-card-header">
+            <strong>{sourceLabelMap[log.source]}</strong>
             <span>{new Date(log.createdAt).toLocaleString()}</span>
           </header>
-          <p>{log.message}</p>
-          {log.taskId ? <small>任务 ID: {log.taskId}</small> : null}
+          <p className="log-message">{log.message}</p>
+          {log.taskId ? <small className="log-task-id">任务 ID: {log.taskId}</small> : null}
         </article>
       ))}
     </div>

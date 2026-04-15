@@ -6,6 +6,7 @@ import { useTaskEvents } from "./hooks/useTaskEvents";
 import type {
   AppConfig,
   BatchDownloadResponse,
+  ClearHistoryResponse,
   LogRecord,
   ModelPackage,
   ServerInfo,
@@ -16,11 +17,39 @@ import type {
 type View = "download" | "watermark" | "tasks" | "settings";
 
 const emptyConfig: AppConfig = {
-  outputDirectory: "",
+  downloadOutputDirectory: "",
   backendUrl: "http://127.0.0.1:8765",
   douyinCookie: "",
   kuaishouCookie: ""
 };
+
+function toSafeFileUrl(filePath: string) {
+  if (!filePath) {
+    return "";
+  }
+
+  try {
+    const normalized = filePath.replace(/\\/g, "/");
+    const encodedPath = normalized
+      .split("/")
+      .map((segment, index) => {
+        if (segment === "") {
+          return index === 0 ? "" : segment;
+        }
+        return encodeURIComponent(segment);
+      })
+      .join("/")
+      .replace(/^([A-Za-z])%3A/i, "$1:");
+
+    if (normalized.startsWith("/")) {
+      return `file://${encodedPath}`;
+    }
+
+    return `file:///${encodedPath}`;
+  } catch {
+    return `file://${filePath.replace(/#/g, "%23").replace(/\?/g, "%3F")}`;
+  }
+}
 
 async function fetchJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
@@ -53,11 +82,13 @@ export default function App() {
   const [backendOnline, setBackendOnline] = useState(false);
   const [shareInputs, setShareInputs] = useState<string[]>([""]);
   const [downloadLoading, setDownloadLoading] = useState(false);
+  const [clearHistoryLoading, setClearHistoryLoading] = useState(false);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [logs, setLogs] = useState<LogRecord[]>([]);
   const [models, setModels] = useState<ModelPackage[]>([]);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [watermarkVideoPath, setWatermarkVideoPath] = useState("");
+  const [watermarkOutputDirectory, setWatermarkOutputDirectory] = useState("");
   const [region, setRegion] = useState<WatermarkRegion | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [draftRect, setDraftRect] = useState<WatermarkRegion | null>(null);
@@ -66,6 +97,8 @@ export default function App() {
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoStageRef = useRef<HTMLDivElement | null>(null);
+  const [videoDisplayRect, setVideoDisplayRect] = useState<{ width: number; height: number } | null>(null);
 
   const backendUrl = config.backendUrl || emptyConfig.backendUrl;
 
@@ -174,10 +207,35 @@ export default function App() {
     }
   };
 
+  const onPickDownloadOutputDir = async () => {
+    const picked = await window.cliplab.pickDirectory();
+    if (!picked) {
+      return "";
+    }
+    const nextConfig = { ...config, downloadOutputDirectory: picked };
+    const saved = await window.cliplab.setAppConfig(nextConfig);
+    setConfig(saved);
+    setNotice(`下载输出目录已更新到 ${picked}`);
+    return picked;
+  };
+
+  const ensureDownloadOutputDirectory = async () => {
+    if (config.downloadOutputDirectory.trim()) {
+      return config.downloadOutputDirectory.trim();
+    }
+    setNotice("链接下载必须先选择输出目录。");
+    return await onPickDownloadOutputDir();
+  };
+
   const onDownloadAll = async () => {
     const nonEmptyInputs = shareInputs.map((item) => item.trim()).filter(Boolean);
     if (nonEmptyInputs.length === 0) {
       setNotice("请先输入至少一个分享文案或链接。");
+      return;
+    }
+
+    const outputDirectory = await ensureDownloadOutputDirectory();
+    if (!outputDirectory) {
       return;
     }
 
@@ -187,7 +245,7 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({
           shareUrls: nonEmptyInputs,
-          outputDirectory: config.outputDirectory || "",
+          outputDirectory,
           douyinCookie: config.douyinCookie || "",
           kuaishouCookie: config.kuaishouCookie || ""
         })
@@ -205,17 +263,6 @@ export default function App() {
     } finally {
       setDownloadLoading(false);
     }
-  };
-
-  const onPickOutputDir = async () => {
-    const picked = await window.cliplab.pickDirectory();
-    if (!picked) {
-      return;
-    }
-    const nextConfig = { ...config, outputDirectory: picked };
-    const saved = await window.cliplab.setAppConfig(nextConfig);
-    setConfig(saved);
-    setNotice(`输出目录已更新到 ${picked}`);
   };
 
   const onSaveConfig = async () => {
@@ -237,6 +284,23 @@ export default function App() {
     setIsVideoPlaying(false);
   };
 
+  const onPickWatermarkOutputDir = async () => {
+    const picked = await window.cliplab.pickDirectory();
+    if (!picked) {
+      return;
+    }
+    setWatermarkOutputDirectory(picked);
+    setNotice(`去水印输出目录已设置到 ${picked}`);
+  };
+
+  const onOpenFolder = async (targetPath: string) => {
+    try {
+      await window.cliplab.openFolder(targetPath);
+    } catch (error) {
+      setNotice((error as Error).message);
+    }
+  };
+
   const onCreateWatermarkTask = async () => {
     if (!watermarkVideoPath || !region) {
       setNotice("请先选择视频并框选去水印区域。");
@@ -247,12 +311,11 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({
           inputPath: watermarkVideoPath,
-          outputDirectory: config.outputDirectory,
+          outputDirectory: watermarkOutputDirectory,
           region,
           algorithm: "sttn_auto"
         })
       });
-      // 直接更新本地状态，确保立即显示
       setTasks((current) => {
         const next = current.filter((item) => item.id !== task.id);
         next.push(task);
@@ -263,6 +326,21 @@ export default function App() {
       refreshTasks();
     } catch (error) {
       setNotice((error as Error).message);
+    }
+  };
+
+  const onClearHistory = async () => {
+    setClearHistoryLoading(true);
+    try {
+      const response = await fetchJson<ClearHistoryResponse>(`${backendUrl}/api/history/clear`, {
+        method: "POST"
+      });
+      await Promise.all([refreshTasks(), refreshLogs()]);
+      setNotice(`已清除 ${response.clearedTasks} 条历史任务，清空 ${response.clearedLogs} 条日志。`);
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      setClearHistoryLoading(false);
     }
   };
 
@@ -345,10 +423,71 @@ export default function App() {
     setVideoCurrentTime(value);
   };
 
+  const updateVideoDisplayRect = useCallback(() => {
+    const stage = videoStageRef.current;
+    const video = videoRef.current;
+    if (!stage || !video) {
+      setVideoDisplayRect(null);
+      return;
+    }
+
+    const sourceWidth = video.videoWidth;
+    const sourceHeight = video.videoHeight;
+    if (!sourceWidth || !sourceHeight) {
+      setVideoDisplayRect(null);
+      return;
+    }
+
+    const stageWidth = stage.clientWidth;
+    const stageHeight = stage.clientHeight;
+    if (!stageWidth || !stageHeight) {
+      setVideoDisplayRect(null);
+      return;
+    }
+
+    const scale = Math.min(stageWidth / sourceWidth, stageHeight / sourceHeight);
+    setVideoDisplayRect({
+      width: Math.max(1, Math.floor(sourceWidth * scale)),
+      height: Math.max(1, Math.floor(sourceHeight * scale))
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => updateVideoDisplayRect();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateVideoDisplayRect]);
+
+  useEffect(() => {
+    const stage = videoStageRef.current;
+    if (!stage) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateVideoDisplayRect();
+    });
+    resizeObserver.observe(stage);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [updateVideoDisplayRect, watermarkVideoPath, view]);
+
+  useEffect(() => {
+    updateVideoDisplayRect();
+  }, [updateVideoDisplayRect, watermarkVideoPath, view]);
+
   const taskCountLabel = useMemo(() => {
-    const activeCount = tasks.filter((t) => t.status === "running" || t.status === "queued").length;
+    const activeCount = tasks.filter((task) => task.status === "running" || task.status === "queued").length;
     return `${activeCount} 个任务`;
   }, [tasks]);
+
+  const latestWatermarkTask = useMemo(
+    () => tasks.find((task) => task.type === "remove_watermark" && task.status === "succeeded" && !!task.outputPath),
+    [tasks]
+  );
+  const watermarkVideoUrl = useMemo(() => toSafeFileUrl(watermarkVideoPath), [watermarkVideoPath]);
 
   return (
     <div className="app-shell">
@@ -371,20 +510,21 @@ export default function App() {
           <section className="panel-grid">
             <article className="panel">
               <h3>批量下载</h3>
-              <p>支持整段分享文案里的抖音、快手单视频链接。默认 1 个输入框，可按需继续添加。</p>
+              <p>支持整段分享文案里的抖音、快手单视频链接。下载前必须先选择输出目录。</p>
               <div className="download-input-list">
                 {shareInputs.map((value, index) => (
                   <div key={`share-input-${index}`} className="download-input-card">
                     <div className="section-header compact">
                       <strong>链接 {index + 1}</strong>
                       <div className="button-row compact">
-                        <button className="secondary-button" onClick={() => onPasteInput(index)}>
+                        <button className="secondary-button small-button" onClick={() => onPasteInput(index)} type="button">
                           粘贴
                         </button>
                         <button
-                          className="secondary-button"
+                          className="secondary-button small-button"
                           disabled={shareInputs.length === 1}
                           onClick={() => removeShareInput(index)}
+                          type="button"
                         >
                           删除
                         </button>
@@ -400,20 +540,25 @@ export default function App() {
                 ))}
               </div>
               <div className="button-row">
-                <button className="primary-button" disabled={downloadLoading} onClick={onDownloadAll}>
+                <button className="primary-button" disabled={downloadLoading} onClick={onDownloadAll} type="button">
                   {downloadLoading ? "提交中..." : "下载"}
                 </button>
-                <button className="secondary-button" onClick={addShareInput}>
+                <button className="secondary-button" onClick={addShareInput} type="button">
                   添加
                 </button>
-                <button className="secondary-button" onClick={() => onPasteInput(shareInputs.length - 1)}>
-                  粘贴最后一项
-                </button>
-                <button className="secondary-button" onClick={onPickOutputDir}>
+                <button className="secondary-button" onClick={onPickDownloadOutputDir} type="button">
                   选择输出目录
                 </button>
+                <button
+                  className="secondary-button"
+                  disabled={!config.downloadOutputDirectory}
+                  onClick={() => onOpenFolder(config.downloadOutputDirectory)}
+                  type="button"
+                >
+                  打开输出文件夹
+                </button>
               </div>
-              <small>当前输出目录：{config.outputDirectory || "未设置"}</small>
+              <small>当前下载目录：{config.downloadOutputDirectory || "未设置，提交前必须选择"}</small>
             </article>
 
             <article className="panel">
@@ -430,47 +575,84 @@ export default function App() {
 
         {view === "watermark" && (
           <section className="panel-grid watermark-layout">
-            <article className="panel">
+            <article className="panel watermark-sidebar-panel">
               <h3>选择视频</h3>
-              <p>先选一个本地视频，再在预览区拖出水印框。</p>
+              <p>先选一个本地视频，再在预览区拖出水印框。输出目录可留空，留空时默认输出到原视频目录。</p>
               <div className="button-row">
-                <button className="primary-button" onClick={onPickVideo}>
+                <button className="primary-button" onClick={onPickVideo} type="button">
                   选择本地视频
                 </button>
-                <button className="secondary-button" onClick={onPickOutputDir}>
+                <button className="secondary-button" onClick={onPickWatermarkOutputDir} type="button">
                   选择输出目录
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={!watermarkOutputDirectory}
+                  onClick={() => setWatermarkOutputDirectory("")}
+                  type="button"
+                >
+                  使用原目录
                 </button>
               </div>
               <small>{watermarkVideoPath || "还未选择视频"}</small>
+              <small>当前去水印目录：{watermarkOutputDirectory || "未选择，默认使用原视频目录"}</small>
               <div className="region-summary">
                 <strong>当前区域</strong>
-                <span>{region ? JSON.stringify(region) : "尚未框选"}</span>
+                <span className="region-text">{region ? JSON.stringify(region) : "尚未框选"}</span>
               </div>
-              <small>播放条已移到预览区下方，框选时不会再被原生进度条挡住。</small>
-              <button className="primary-button" disabled={!region || !watermarkVideoPath} onClick={onCreateWatermarkTask}>
-                创建去水印任务
-              </button>
+              <small>输出文件会自动追加 `_no_watermark` 后缀。</small>
+              <div className="watermark-actions">
+                <button className="primary-button" disabled={!region || !watermarkVideoPath} onClick={onCreateWatermarkTask} type="button">
+                  创建去水印任务
+                </button>
+                {latestWatermarkTask?.outputPath ? (
+                  <button
+                    className="secondary-button"
+                    onClick={() => onOpenFolder(latestWatermarkTask.outputPath!)}
+                    type="button"
+                  >
+                    打开文件夹
+                  </button>
+                ) : null}
+              </div>
             </article>
 
-            <article className="panel">
+            <article className="panel watermark-preview-panel">
               <h3>手动框选</h3>
-              <div className="video-stage">
+              <div className="video-stage" ref={videoStageRef}>
                 {watermarkVideoPath ? (
-                  <>
+                  <div
+                    className="video-frame"
+                    style={
+                      videoDisplayRect
+                        ? {
+                            width: `${videoDisplayRect.width}px`,
+                            height: `${videoDisplayRect.height}px`
+                          }
+                        : undefined
+                    }
+                  >
                     <video
                       key={watermarkVideoPath}
                       ref={videoRef}
-                      src={`file://${watermarkVideoPath}`}
+                      src={watermarkVideoUrl}
                       className="video-preview"
+                      preload="metadata"
                       onLoadedMetadata={(event) => {
                         setVideoDuration(event.currentTarget.duration || 0);
                         setVideoCurrentTime(event.currentTarget.currentTime || 0);
+                        updateVideoDisplayRect();
                       }}
                       onTimeUpdate={(event) => {
                         setVideoCurrentTime(event.currentTarget.currentTime || 0);
                       }}
                       onPlay={() => setIsVideoPlaying(true)}
                       onPause={() => setIsVideoPlaying(false)}
+                      onError={() => {
+                        setIsVideoPlaying(false);
+                        setVideoDisplayRect(null);
+                        setNotice("视频预览加载失败，请检查文件路径或格式是否受支持。");
+                      }}
                     />
                     <div
                       className="selection-surface"
@@ -491,7 +673,7 @@ export default function App() {
                         />
                       )}
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="empty-stage">选择视频后，在这里直接框选去水印区域。</div>
                 )}
@@ -499,13 +681,13 @@ export default function App() {
               {watermarkVideoPath && (
                 <div className="video-controls">
                   <div className="button-row">
-                    <button className="secondary-button" onClick={() => seekVideo(-2)}>
+                    <button className="secondary-button" onClick={() => seekVideo(-2)} type="button">
                       后退 2 秒
                     </button>
-                    <button className="primary-button" onClick={toggleVideoPlayback}>
+                    <button className="primary-button" onClick={toggleVideoPlayback} type="button">
                       {isVideoPlaying ? "暂停预览" : "播放预览"}
                     </button>
-                    <button className="secondary-button" onClick={() => seekVideo(2)}>
+                    <button className="secondary-button" onClick={() => seekVideo(2)} type="button">
                       前进 2 秒
                     </button>
                     <button
@@ -514,6 +696,7 @@ export default function App() {
                         setRegion(null);
                         setDraftRect(null);
                       }}
+                      type="button"
                     >
                       清除框选
                     </button>
@@ -537,26 +720,31 @@ export default function App() {
         )}
 
         {view === "tasks" && (
-          <section className="panel-grid">
-            <article className="panel">
+          <section className="panel-grid task-page-grid">
+            <article className="panel panel-scroll">
               <div className="section-header">
                 <div>
                   <h3>任务中心</h3>
                   <p>下载和去水印任务统一在这里追踪。</p>
                 </div>
-                <button className="secondary-button" onClick={refreshTasks}>
-                  刷新
-                </button>
+                <div className="button-row compact">
+                  <button className="secondary-button small-button" onClick={refreshTasks} type="button">
+                    刷新
+                  </button>
+                  <button className="secondary-button small-button" disabled={clearHistoryLoading} onClick={onClearHistory} type="button">
+                    {clearHistoryLoading ? "清理中..." : "清除记录"}
+                  </button>
+                </div>
               </div>
-              <TaskList tasks={tasks} />
+              <TaskList tasks={tasks} onOpenFolder={onOpenFolder} />
             </article>
-            <article className="panel">
+            <article className="panel panel-scroll">
               <div className="section-header">
                 <div>
                   <h3>运行日志</h3>
                   <p>手机端和桌面端提交的任务都会记录在这里。</p>
                 </div>
-                <button className="secondary-button" onClick={refreshLogs}>
+                <button className="secondary-button small-button" onClick={refreshLogs} type="button">
                   刷新
                 </button>
               </div>
@@ -566,7 +754,7 @@ export default function App() {
         )}
 
         {view === "settings" && (
-          <section className="panel-grid">
+          <section className="panel-grid settings-page-grid">
             <article className="panel">
               <h3>应用设置</h3>
               <div className="setting-row">
@@ -574,11 +762,11 @@ export default function App() {
                 <code>{config.backendUrl}</code>
               </div>
               <div className="setting-row">
-                <span>默认输出目录</span>
-                <code>{config.outputDirectory}</code>
+                <span>下载输出目录</span>
+                <code>{config.downloadOutputDirectory || "未设置"}</code>
               </div>
-              <button className="secondary-button" onClick={onPickOutputDir}>
-                修改输出目录
+              <button className="secondary-button" onClick={onPickDownloadOutputDir} type="button">
+                修改下载目录
               </button>
               <div className="setting-form">
                 <label className="field-label" htmlFor="douyin-cookie">
@@ -602,16 +790,16 @@ export default function App() {
                   placeholder="快手默认无需登录，只有异常时再填写"
                 />
                 <div className="button-row">
-                  <button className="primary-button" onClick={onSaveConfig}>
+                  <button className="primary-button" onClick={onSaveConfig} type="button">
                     保存下载设置
                   </button>
                 </div>
               </div>
             </article>
 
-            <article className="panel">
+            <article className="panel panel-scroll settings-model-panel">
               <h3>模型管理</h3>
-              <div className="model-list">
+              <div className="model-list settings-model-list">
                 {models.map((model) => (
                   <div key={model.id} className="model-card">
                     <div>
@@ -622,7 +810,7 @@ export default function App() {
                       <span>{(model.size / 1024 / 1024).toFixed(1)} MB</span>
                       <span>{model.installed ? "已安装" : model.downloadStatus}</span>
                     </div>
-                    <button className="primary-button" disabled={model.installed} onClick={() => onDownloadModel(model.id)}>
+                    <button className="primary-button" disabled={model.installed} onClick={() => onDownloadModel(model.id)} type="button">
                       {model.installed ? "已就绪" : "下载模型"}
                     </button>
                   </div>
